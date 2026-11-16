@@ -1,0 +1,11 @@
+build/
+sdkconfig
+sdkconfig.old
+.vscode/
+.settings/
+.project
+.cproject
+*.o
+*.d
+managed_components/
+dependencies.lock

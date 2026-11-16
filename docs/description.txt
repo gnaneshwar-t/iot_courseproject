@@ -1,0 +1,399 @@
+ESP32 Smart Home Automation | 2026
+
+Developed a Wi-Fi-enabled smart home automation system using ESP32, ESP-IDF, and Embedded C. Integrated DHT11, LDR, and HC-SR04 sensors for environmental, light, and presence monitoring. Implemented modular GPIO, ADC, sensor, and relay drivers with threshold-based automatic appliance control. Developed an on-device HTTP server and web interface for real-time monitoring and manual appliance control over Wi-Fi.
+
+Platform: ESP32
+Framework: ESP-IDF (Native)
+IDE: Eclipse IDE
+Programming Language: Embedded C
+Communication: Wi-Fi, HTTP
+Interface: Web-Based Control Panel
+Concurrency Model: Single app_main() loop
+
+
+============================================================
+1. PROJECT OVERVIEW
+============================================================
+
+The ESP32 Smart Home Automation System is a Wi-Fi-enabled embedded system that monitors environmental and room conditions and controls home appliances remotely.
+
+The ESP32 collects data from three sensors:
+
+1. DHT11 - Measures temperature and humidity.
+2. LDR - Measures light intensity.
+3. HC-SR04 - Measures distance and detects nearby objects or people.
+
+Based on sensor readings and predefined thresholds, the ESP32 controls two relay outputs connected to a light and a fan.
+
+A built-in web server hosted directly on the ESP32 provides a web-based interface to monitor sensor readings and control appliances remotely.
+
+No external server or cloud platform is required.
+
+
+============================================================
+2. HARDWARE COMPONENTS
+============================================================
+
+1. ESP32 Development Board
+   Purpose: Main controller with built-in Wi-Fi.
+
+2. DHT11 Sensor
+   Purpose: Measures temperature and humidity.
+
+3. LDR Sensor with Resistor
+   Purpose: Detects ambient light intensity using a voltage divider.
+
+4. HC-SR04 Ultrasonic Sensor
+   Purpose: Measures distance and detects nearby objects.
+
+5. Two-Channel Relay Module
+   Purpose: Controls electrical appliances.
+
+6. LED/Bulb and DC Fan
+   Purpose: Demonstration loads.
+
+7. Breadboard and Jumper Wires
+   Purpose: Circuit connections and prototyping.
+
+SAFETY:
+Always test with low-voltage loads first. Mains-powered appliances require proper electrical isolation, enclosure, and safety precautions.
+
+
+============================================================
+3. PIN CONFIGURATION
+============================================================
+
+DHT11 DATA       - GPIO 4
+LDR              - GPIO 34 (ADC1_CH6)
+HC-SR04 TRIG     - GPIO 5
+HC-SR04 ECHO     - GPIO 18
+Relay 1 (Light)  - GPIO 19
+Relay 2 (Fan)    - GPIO 21
+
+IMPORTANT:
+The HC-SR04 ECHO pin produces a 5V signal, whereas ESP32 GPIO pins support 3.3V logic.
+
+A voltage divider must be used between the ECHO output and ESP32 GPIO 18 to prevent damage.
+
+
+============================================================
+4. WORKING PRINCIPLE
+============================================================
+
+The complete application runs inside a single app_main() function.
+
+INITIALIZATION:
+
+1. Initialize GPIO pins.
+2. Initialize ADC for the LDR sensor.
+3. Initialize DHT11 and HC-SR04 sensors.
+4. Initialize relay outputs.
+5. Initialize Wi-Fi in station mode.
+6. Connect ESP32 to the configured Wi-Fi network.
+7. Start the HTTP web server.
+
+MAIN LOOP:
+
+The ESP32 continuously performs the following operations:
+
+1. Read temperature and humidity from DHT11.
+2. Read light intensity from LDR using ADC.
+3. Measure distance using HC-SR04.
+4. Pass sensor readings to the automation module.
+5. Check whether the system is in AUTOMATIC or MANUAL mode.
+6. Control relays according to the selected mode.
+7. Print sensor readings and relay states to the serial console.
+8. Wait for 2 seconds using vTaskDelay().
+9. Repeat the process.
+
+CONCURRENCY MODEL:
+
+The project uses a single sequential application loop.
+
+It does not explicitly create additional FreeRTOS tasks using xTaskCreate().
+
+It does not use queues or semaphores.
+
+The only explicitly used FreeRTOS function is vTaskDelay(), which provides a delay between consecutive sensor-reading cycles.
+
+
+============================================================
+5. AUTOMATION LOGIC
+============================================================
+
+The automation logic is implemented in automation.c.
+
+FAN CONTROL:
+
+Condition:
+If temperature > 30°C:
+    Fan ON
+Otherwise:
+    Fan OFF
+
+LIGHT CONTROL:
+
+Condition:
+If the environment is dark AND an object/person is detected within 100 cm:
+    Light ON
+Otherwise:
+    Light OFF
+
+The LDR threshold must be calibrated according to the actual circuit and sensor configuration.
+
+AUTOMATIC MODE:
+
+The ESP32 independently controls appliances based on sensor readings and predefined thresholds.
+
+MANUAL MODE:
+
+The user can directly control the light and fan through the web interface.
+
+Whenever the user manually switches a relay, the system automatically enters MANUAL mode.
+
+The user can press the AUTOMATIC button to restore sensor-based control.
+
+
+============================================================
+6. HC-SR04 DISTANCE CALCULATION
+============================================================
+
+The ultrasonic sensor sends an ultrasonic pulse and measures the time taken for the reflected pulse to return.
+
+Distance is calculated using:
+
+Distance (cm) = Echo Time (microseconds) * 0.0343 / 2
+
+Explanation:
+
+0.0343 cm/microsecond is the approximate speed of sound.
+
+We divide by 2 because the ultrasonic pulse travels to the object and comes back.
+
+The measured time represents the total round-trip time.
+
+
+============================================================
+7. WI-FI COMMUNICATION
+============================================================
+
+The ESP32 operates in Wi-Fi Station Mode.
+
+It connects to an existing Wi-Fi network using the configured SSID and password.
+
+After connecting successfully, the ESP32 receives an IP address from the router.
+
+The HTTP server starts on the ESP32.
+
+Users connected to the same network can access the web interface using the ESP32 IP address.
+
+Example:
+
+http://192.168.1.100/
+
+
+============================================================
+8. WEB INTERFACE
+============================================================
+
+The ESP32 hosts its own web-based control panel.
+
+The HTML, CSS, and JavaScript code are embedded directly as a string inside http_server.c.
+
+No external web server or SPIFFS filesystem is required.
+
+The web interface provides:
+
+1. Temperature monitoring.
+2. Humidity monitoring.
+3. Light intensity monitoring.
+4. Distance monitoring.
+5. Light ON/OFF controls.
+6. Fan ON/OFF controls.
+7. Current operating mode.
+8. Automatic and Manual mode selection.
+
+The frontend polls the /status endpoint every 2 seconds to obtain updated sensor readings and relay states.
+
+
+============================================================
+9. REST API ENDPOINTS
+============================================================
+
+GET /
+
+Returns the main web interface.
+
+GET /status
+
+Returns the current sensor readings, relay states, and operating mode in JSON format.
+
+GET /light/on
+
+Turns ON the light and switches to MANUAL mode.
+
+GET /light/off
+
+Turns OFF the light and switches to MANUAL mode.
+
+GET /fan/on
+
+Turns ON the fan and switches to MANUAL mode.
+
+GET /fan/off
+
+Turns OFF the fan and switches to MANUAL mode.
+
+GET /mode/auto
+
+Enables AUTOMATIC mode.
+
+GET /mode/manual
+
+Enables MANUAL mode.
+
+SAMPLE JSON RESPONSE:
+
+{
+  "temperature": 28.0,
+  "humidity": 62.0,
+  "light": 1450,
+  "distance": 42.3,
+  "light_state": false,
+  "fan_state": false,
+  "auto_mode": true
+}
+
+
+============================================================
+10. PROJECT STRUCTURE
+============================================================
+
+ESP32-Smart-Home-Automation/
+
+    CMakeLists.txt
+
+    main/
+        CMakeLists.txt
+        main.c
+
+        dht11.c
+        dht11.h
+
+        ldr.c
+        ldr.h
+
+        hcsr04.c
+        hcsr04.h
+
+        relay.c
+        relay.h
+
+        wifi_manager.c
+        wifi_manager.h
+
+        http_server.c
+        http_server.h
+
+        automation.c
+        automation.h
+
+    docs/
+        block_diagram.png
+        circuit_diagram.png
+        project_report.pdf
+
+    images/
+        hardware_setup.jpg
+        web_interface.jpg
+
+    .gitignore
+    LICENSE
+    README.md
+
+
+============================================================
+11. ROLE OF EACH MODULE
+============================================================
+
+main.c:
+Main application entry point. Initializes hardware, Wi-Fi, and HTTP server and executes the main sensor-monitoring loop.
+
+dht11.c / dht11.h:
+Handles communication with the DHT11 sensor and retrieves temperature and humidity.
+
+ldr.c / ldr.h:
+Reads analog values from the LDR using the ESP32 ADC.
+
+hcsr04.c / hcsr04.h:
+Controls the ultrasonic sensor and calculates distance.
+
+relay.c / relay.h:
+Provides functions to switch the light and fan relays ON and OFF.
+
+wifi_manager.c / wifi_manager.h:
+Manages Wi-Fi station initialization and connection.
+
+http_server.c / http_server.h:
+Starts the HTTP server, serves the embedded web interface, and handles REST API requests.
+
+automation.c / automation.h:
+Contains the automatic appliance-control logic based on sensor readings and operating mode.
+
+
+============================================================
+12. BUILDING AND RUNNING USING ECLIPSE IDE
+============================================================
+
+1. Install ESP-IDF version 5.x.
+2. Install the Espressif-IDF Eclipse plugin.
+3. Open Eclipse IDE.
+4. Select File -> Import -> Existing IDF Project.
+5. Select the project folder containing the top-level CMakeLists.txt.
+6. Open main/main.c.
+7. Configure Wi-Fi SSID and password.
+8. Set the target to ESP32.
+9. Build the project using the Build option.
+10. Flash the firmware to the ESP32.
+11. Open the serial monitor.
+12. Check the IP address assigned to the ESP32.
+13. Open a browser on a device connected to the same Wi-Fi network.
+14. Enter the ESP32 IP address.
+
+The project can also be built using the ESP-IDF terminal:
+
+idf.py build
+idf.py flash monitor
+
+
+============================================================
+13. KEY FEATURES
+============================================================
+
+1. Wi-Fi-based remote appliance control.
+2. Real-time environmental monitoring.
+3. Temperature and humidity measurement.
+4. Light intensity detection.
+5. Ultrasonic distance measurement.
+6. Automatic fan and light control.
+7. Manual appliance control through a web interface.
+8. On-device HTTP server.
+9. Modular sensor and hardware drivers.
+10. Simple sequential application architecture.
+11. No external cloud dependency.
+
+
+============================================================
+14. FUTURE IMPROVEMENTS
+============================================================
+
+1. MQTT integration for IoT communication.
+2. Home Assistant integration.
+3. OTA firmware updates.
+4. Store Wi-Fi credentials using Non-Volatile Storage (NVS).
+5. Store configurable automation thresholds in NVS.
+6. Add HTTPS communication.
+7. Implement authentication for the web interface.
+8. Support multiple rooms and sensor nodes.
+
+

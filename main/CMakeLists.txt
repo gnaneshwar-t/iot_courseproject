@@ -1,0 +1,22 @@
+idf_component_register(
+    SRCS
+        "main.c"
+        "dht11.c"
+        "ldr.c"
+        "hcsr04.c"
+        "relay.c"
+        "wifi_manager.c"
+        "http_server.c"
+        "automation.c"
+    INCLUDE_DIRS "."
+    REQUIRES
+        driver
+        esp_wifi
+        esp_event
+        esp_netif
+        nvs_flash
+        esp_http_server
+        esp_timer
+        esp_rom
+        log
+)
